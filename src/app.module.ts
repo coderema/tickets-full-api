@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointsModule } from './endpoints/endpoints.module';
+import { CoreModule } from './core/core.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { EndpointsModule } from './endpoints/endpoints.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
       }),
     }),
+    CoreModule,
     EndpointsModule,
   ],
   controllers: [AppController],
