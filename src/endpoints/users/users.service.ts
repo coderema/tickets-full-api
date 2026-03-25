@@ -25,7 +25,7 @@ export class UsersService {
       return query.getMany();
     }
 
-    const { page, pageSize, orderBy, orderDirection, filter } = params.page;
+    const { page, pageSize, cursor, orderBy, orderDirection, filter } = params.page;
 
     const query = this.usersRepository.createQueryBuilder('user');
 
@@ -43,9 +43,13 @@ export class UsersService {
       query.orderBy(`user.${orderBy}`, orderDirection?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
     }
 
+    if (cursor) {
+      query.andWhere('user.id > :cursor', { cursor });
+    }
+
     const total = await query.getCount();
     const data = await query
-      .skip((page - 1) * pageSize)
+      .orderBy('user.id', 'ASC')
       .take(pageSize)
       .getMany();
 

@@ -9,6 +9,7 @@ export interface PageModel<T> {
 export interface PageRequest {
     page: number;
     pageSize: number;
+    cursor?: number;
     orderBy?: string;
     orderDirection?: 'asc' | 'desc';
     filter?: { [key: string]: string };

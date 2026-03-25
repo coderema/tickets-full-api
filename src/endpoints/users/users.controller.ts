@@ -18,6 +18,7 @@ export class UsersController {
   @ApiQuery({ name: 'pagination', required: false, type: Boolean })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  @ApiQuery({ name: 'cursor', required: false, type: Number })
   @ApiQuery({ name: 'orderBy', required: false, type: String })
   @ApiQuery({ name: 'orderDirection', required: false, enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'fields', required: false, type: String, isArray: true })
@@ -25,6 +26,7 @@ export class UsersController {
     @Query('pagination') pagination = 'true',
     @Query('page') page = 1,
     @Query('pageSize') pageSize = 10,
+    @Query('cursor') cursor?: number,
     @Query('orderBy') orderBy?: string,
     @Query('orderDirection') orderDirection?: 'asc' | 'desc',
     @Query('fields') fields?: string[],
@@ -38,7 +40,7 @@ export class UsersController {
 
     return this.usersService.findAll({
       pagination: true,
-      page: { page: +page, pageSize: +pageSize, orderBy, orderDirection },
+      page: { page: +page, pageSize: +pageSize, cursor: cursor ? +cursor : undefined, orderBy, orderDirection },
       fields,
     });
   }
