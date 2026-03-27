@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 210mm;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f3f3f3;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color: #1a1a1a;
+      line-height: 0;
+      font-size: 0;
+    }
+    .ticket-page {
+      width: 210mm;
+      height: 297mm;
+      page-break-after: always;
+      page-break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      background: #f3f3f3;
+      padding: 20mm 16mm;
+    }
+    .ticket-page:last-child { page-break-after: avoid; }
+
+    /* Card ocupa todo el alto disponible */
+    .ticket-card {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.4;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .ticket-header {
+      padding: 18px 28px;
+      border-bottom: 1px solid #ebebeb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .header-logo img { max-height: 40px; max-width: 160px; object-fit: contain; }
+    .header-logo .logo-fallback { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+    .header-order { font-size: 13px; color: #6b6b6b; font-weight: 500; }
+    .header-order span { color: #1a1a1a; font-weight: 600; }
+
+    /* Body crece para llenar el espacio entre header y stub */
+    .ticket-body {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Columna izquierda */
+    .ticket-info {
+      flex: 1;
+      padding: 32px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      border-right: 1px solid #ebebeb;
+    }
+    .event-title { font-size: 30px; font-weight: 700; color: #1a1a1a; line-height: 1.2; }
+    .ticket-type-badge {
+      display: inline-flex;
+      align-items: center;
+      background: #f7f7f7;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 7px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1a1a;
+      width: fit-content;
+    }
+    .info-rows { display: flex; flex-direction: column; gap: 18px; }
+    .info-row { display: flex; flex-direction: column; gap: 3px; }
+    .info-row .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9e9e9e; }
+    .info-row .info-value { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+    .info-row .info-value.mono { font-family: 'Courier New', monospace; font-size: 12px; color: #444; }
+    .order-meta {
+      margin-top: auto;
+      background: #fafafa;
+      border: 1px solid #ebebeb;
+      border-radius: 6px;
+      padding: 14px 18px;
+    }
+    .order-meta .meta-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9e9e9e; margin-bottom: 5px; }
+    .order-meta .meta-value { font-size: 13px; color: #444; line-height: 1.5; }
+
+    /* Columna derecha */
+    .ticket-right {
+      width: 220px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .show-image {
+      width: 100%;
+      flex: 1;
+      object-fit: contain;
+      display: block;
+      border-bottom: 1px solid #ebebeb;
+      min-height: 0;
+    }
+    .show-image-placeholder {
+      width: 100%;
+      flex: 1;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #ebebeb;
+    }
+    .show-image-placeholder svg { opacity: 0.25; }
+    .qr-area {
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .qr-frame {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px;
+      width: 160px;
+      height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-frame img { width: 140px; height: 140px; }
+    .qr-code-text { font-family: 'Courier New', monospace; font-size: 9px; color: #9e9e9e; text-align: center; word-break: break-all; max-width: 180px; }
+    .scan-label { font-size: 11px; font-weight: 600; color: #9e9e9e; text-transform: uppercase; letter-spacing: 0.8px; }
+
+    /* Tear line */
+    .tear-line { border: none; border-top: 2px dashed #e0e0e0; margin: 0; flex-shrink: 0; }
+    .tear-circles { position: relative; height: 0; flex-shrink: 0; }
+    .tear-circles::before, .tear-circles::after { content: ''; position: absolute; top: -10px; width: 20px; height: 20px; background: #f3f3f3; border-radius: 50%; border: 1px solid #e0e0e0; }
+    .tear-circles::before { left: -10px; }
+    .tear-circles::after  { right: -10px; }
+
+    /* Stub */
+    .ticket-stub {
+      padding: 18px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fafafa;
+      flex-shrink: 0;
+    }
+    .stub-col { display: flex; flex-direction: column; gap: 3px; }
+    .stub-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9e9e9e; }
+    .stub-value { font-size: 14px; font-weight: 500; color: #444; }
+    .stub-price-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+  </style>
+</head>
+<body>
+  {{#each tickets}}
+  <div class="ticket-page">
+    <div class="ticket-card">
+
+      <div class="ticket-header">
+        <div class="header-logo">
+          {{#if ../logoUrl}}
+            <img src="{{../logoUrl}}" alt="{{../showTitle}}" />
+          {{else}}
+            <span class="logo-fallback">{{../showTitle}}</span>
+          {{/if}}
+        </div>
+        <div class="header-order">Order <span>#{{../bookingRef}}</span></div>
+      </div>
+
+      <div class="ticket-body">
+        <div class="ticket-info">
+          <div class="event-title">{{../showTitle}}</div>
+          <div class="ticket-type-badge">{{type}}</div>
+          <div class="info-rows">
+            <div class="info-row">
+              <span class="info-label">Ticket Holder</span>
+              <span class="info-value">{{name}}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Date &amp; Time</span>
+              <span class="info-value">{{../showDate}}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Ticket ID</span>
+              <span class="info-value mono">{{id}}</span>
+            </div>
+          </div>
+          <div class="order-meta">
+            <div class="meta-label">Order Information</div>
+            <div class="meta-value">
+              Order #{{../bookingRef}}. Ordered by {{../customerName}} on {{../purchaseDate}}.
+            </div>
+          </div>
+        </div>
+
+        <div class="ticket-right">
+          {{#if ../showImageUrl}}
+            <img class="show-image" src="{{../showImageUrl}}" alt="{{../showTitle}}" />
+          {{else}}
+            <div class="show-image-placeholder">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+            </div>
+          {{/if}}
+          <div class="qr-area">
+            <div class="qr-frame">
+              <img src="{{qrDataUrl}}" alt="QR Code" />
+            </div>
+            <span class="scan-label">Scan at entrance</span>
+            <span class="qr-code-text">{{id}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tear-circles"></div>
+      <hr class="tear-line" />
+
+      <div class="ticket-stub">
+        <div class="stub-col">
+          <span class="stub-label">Booking Ref</span>
+          <span class="stub-value">#{{../bookingRef}}</span>
+        </div>
+        <div class="stub-col">
+          <span class="stub-label">Holder</span>
+          <span class="stub-value">{{name}}</span>
+        </div>
+        <div class="stub-col">
+          <span class="stub-label">Category</span>
+          <span class="stub-value">{{type}}</span>
+        </div>
+        <div class="stub-col" style="text-align:right">
+          <span class="stub-label">Price</span>
+          <span class="stub-price-value">${{price}}</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {{/each}}
+</body>
+</html>

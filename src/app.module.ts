@@ -8,7 +8,7 @@ import { CoreModule } from './core/core.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -19,7 +19,7 @@ import { CoreModule } from './core/core.module';
         username: config.get<string>('DB_USERNAME'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_DATABASE'),
-        synchronize: true,
+        synchronize: config.get<string>('DB_SYNC') === 'true',
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
       }),
     }),

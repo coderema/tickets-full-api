@@ -1,20 +1,20 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { BookingsService } from './bookings.service';
+import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto';
 import { AuthGuard } from '../../core/guards/auth.guard';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 
-@ApiTags('users')
+@ApiTags('bookings')
 @ApiBearerAuth()
-// @UseGuards(AuthGuard)
-@Controller('users')
-export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+@UseGuards(AuthGuard)
+@Controller('bookings')
+export class BookingsController {
+  constructor(private readonly bookingsService: BookingsService) {}
 
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(@Body() createBookingDto: CreateBookingDto) {
+    return this.bookingsService.create(createBookingDto);
   }
 
   @Get()
@@ -35,31 +35,41 @@ export class UsersController {
     @Query('fields') fields?: string[],
   ) {
     if (pagination === 'false') {
-      return this.usersService.findAll({
+      return this.bookingsService.findAll({
         pagination: false,
         fields: fields as [string, ...string[]],
       });
     }
 
-    return this.usersService.findAll({
+    return this.bookingsService.findAll({
       pagination: true,
       page: { page: +page, pageSize: +pageSize, cursor: cursor ? +cursor : undefined, orderBy, orderDirection },
       fields,
     });
   }
 
+  @Get('count')
+  count() {
+    return this.bookingsService.count();
+  }
+
+  @Get(':id/:ticketId/ticket')
+  ticket(@Param('id') id: string, @Param('ticketId') ticketId: string) {
+    return this.bookingsService.generateTicketHtml(id, ticketId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+    return this.bookingsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
+  update(@Param('id') id: string, @Body() updateBookingDto: UpdateBookingDto) {
+    return this.bookingsService.update(id, updateBookingDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+    return this.bookingsService.remove(id);
   }
 }

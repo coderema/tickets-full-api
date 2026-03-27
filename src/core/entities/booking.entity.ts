@@ -1,48 +1,64 @@
 import {
-  Column,
-  CreateDateColumn,
   Entity,
-  OneToMany,
   PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  OneToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BeforeInsert,
 } from 'typeorm';
-import { BookingTicket } from './booking-ticket.entity';
-import { TicketHolder } from './ticket-holder.entity';
+import { v4 as uuidv4 } from 'uuid';
+import { BookingStatus } from './enums';
+import type { ShowDate } from './show-date.entity';
+import type { Ticket } from './ticket.entity';
+import type { Payment } from './payment.entity';
 
 @Entity('bookings')
 export class Booking {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn({ unsigned: true })
+  id: number;
 
-  @Column({ name: 'show_date', type: 'varchar', length: 50 })
-  showDate: string;
+  @Column({ type: 'char', length: 36, unique: true })
+  uuid: string;
+
+  @Column({ name: 'show_date_id', unsigned: true })
+  showDateId: number;
+
+  @Column({ name: 'customer_name', length: 255 })
+  customerName: string;
+
+  @Column({ name: 'customer_email', length: 255 })
+  customerEmail: string;
 
   @Column({ name: 'total_amount', type: 'decimal', precision: 10, scale: 2 })
   totalAmount: number;
 
-  @Column({ name: 'stripe_pi_id', type: 'varchar', length: 100 })
-  stripePiId: string;
+  @Column({ type: 'enum', enum: BookingStatus, default: BookingStatus.PENDING })
+  status: BookingStatus;
 
-  @Column({ name: 'pi_status', type: 'varchar', length: 50, default: 'created' })
-  piStatus: string;
-
-  @Column({ name: 'card_last4', type: 'char', length: 4, nullable: true })
-  cardLast4: string | null;
-
-  @Column({ name: 'card_name', type: 'varchar', length: 255, nullable: true })
-  cardName: string | null;
-
-  @Column({ name: 'customer_email', type: 'varchar', length: 255, nullable: true })
-  customerEmail: string | null;
-
-  @Column({ name: 'logo_url', type: 'text', nullable: true })
-  logoUrl: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'datetime' })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @OneToMany(() => BookingTicket, (ticket) => ticket.booking)
-  tickets: BookingTicket[];
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 
-  @OneToMany(() => TicketHolder, (holder) => holder.booking)
-  holders: TicketHolder[];
+  @ManyToOne('ShowDate', (sd: ShowDate) => sd.bookings)
+  @JoinColumn({ name: 'show_date_id' })
+  showDate: ShowDate;
+
+  @OneToMany('Ticket', (t: Ticket) => t.booking, { cascade: true })
+  tickets: Ticket[];
+
+  @OneToOne('Payment', (p: Payment) => p.booking)
+  payment: Payment;
+
+  @BeforeInsert()
+  generateUuid() {
+    if (!this.uuid) this.uuid = uuidv4();
+  }
 }
+
+export { BookingStatus };
