@@ -5,12 +5,14 @@ import { BookingsController } from './bookings.controller';
 import {
   Booking,
   Ticket,
+  TicketType,
   Payment,
   ShowDate,
+  CashPayment,
 } from '../../core/entities/schema.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking, Ticket, Payment, ShowDate])],
+  imports: [TypeOrmModule.forFeature([Booking, Ticket, TicketType, Payment, ShowDate, CashPayment])],
   controllers: [BookingsController],
   providers: [BookingsService],
 })

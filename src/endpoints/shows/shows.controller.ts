@@ -10,6 +10,8 @@ import { CreateShowDto } from './dto/create-show.dto';
 import { UpdateShowDto } from './dto/update-show.dto';
 import { CreateShowDateDto } from './dto/create-show-date.dto';
 import { UpdateShowDateDto } from './dto/update-show-date.dto';
+import { CreateTicketTypeDto } from './dto/create-ticket-type.dto';
+import { UpdateTicketTypeDto } from './dto/update-ticket-type.dto';
 
 @Controller('shows/images')
 export class ShowImagesController {
@@ -74,6 +76,11 @@ export class ShowsController {
     return this.showsService.update(id, updateShowDto);
   }
 
+  @Patch(':id/publish')
+  publishShow(@Param('id') id: string) {
+    return this.showsService.publishShow(id);
+  }
+
   @Patch(':id/cancel')
   cancelShow(@Param('id') id: string) {
     return this.showsService.cancelShow(id);
@@ -114,6 +121,11 @@ export class ShowsController {
     return this.showsService.updateShowDate(id, dateId, updateShowDateDto);
   }
 
+  @Patch(':id/dates/:dateId/publish')
+  publishShowDate(@Param('id') id: string, @Param('dateId') dateId: string) {
+    return this.showsService.publishShowDate(id, dateId);
+  }
+
   @Patch(':id/dates/:dateId/cancel')
   cancelShowDate(@Param('id') id: string, @Param('dateId') dateId: string) {
     return this.showsService.cancelShowDate(id, dateId);
@@ -122,5 +134,25 @@ export class ShowsController {
   @Delete(':id/dates/:dateId')
   removeShowDate(@Param('id') id: string, @Param('dateId') dateId: string) {
     return this.showsService.removeShowDate(id, dateId);
+  }
+
+  @Get(':id/ticket-types')
+  findTicketTypes(@Param('id') id: string) {
+    return this.showsService.findTicketTypes(id);
+  }
+
+  @Post(':id/ticket-types')
+  createTicketType(@Param('id') id: string, @Body() dto: CreateTicketTypeDto) {
+    return this.showsService.createTicketType(id, dto);
+  }
+
+  @Patch(':id/ticket-types/:typeId')
+  updateTicketType(@Param('id') id: string, @Param('typeId') typeId: string, @Body() dto: UpdateTicketTypeDto) {
+    return this.showsService.updateTicketType(id, typeId, dto);
+  }
+
+  @Delete(':id/ticket-types/:typeId')
+  removeTicketType(@Param('id') id: string, @Param('typeId') typeId: string) {
+    return this.showsService.removeTicketType(id, typeId);
   }
 }

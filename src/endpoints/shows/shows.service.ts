@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Show } from '../../core/entities/show.entity';
 import { ShowDate } from '../../core/entities/show-date.entity';
 import { ShowImage } from '../../core/entities/show-image.entity';
+import { TicketType } from '../../core/entities/ticket-type.entity';
 import { ContentStatus } from '../../core/entities/enums';
 import { BookingStatus } from '../../core/entities/enums';
 import { MailService } from '../../core/mail/mail.service';
@@ -15,6 +16,8 @@ import { CreateShowDto } from './dto/create-show.dto';
 import { UpdateShowDto } from './dto/update-show.dto';
 import { CreateShowDateDto } from './dto/create-show-date.dto';
 import { UpdateShowDateDto } from './dto/update-show-date.dto';
+import { CreateTicketTypeDto } from './dto/create-ticket-type.dto';
+import { UpdateTicketTypeDto } from './dto/update-ticket-type.dto';
 import { GetRequestParams, PageModel } from '../../core/models/page.model';
 
 @Injectable()
@@ -26,6 +29,8 @@ export class ShowsService {
     private readonly showDatesRepository: Repository<ShowDate>,
     @InjectRepository(ShowImage)
     private readonly showImagesRepository: Repository<ShowImage>,
+    @InjectRepository(TicketType)
+    private readonly ticketTypesRepository: Repository<TicketType>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {}
@@ -83,9 +88,11 @@ export class ShowsService {
     const show = await this.showsRepository
       .createQueryBuilder('show')
       .leftJoinAndSelect('show.showDates', 'showDate')
+      .leftJoinAndSelect('show.ticketTypes', 'ticketType')
       .loadRelationCountAndMap('showDate.bookingCount', 'showDate.bookings')
       .where('show.uuid = :uuid', { uuid })
       .orderBy('showDate.date', 'ASC')
+      .addOrderBy('ticketType.name', 'ASC')
       .getOne();
 
     if (!show) throw new NotFoundException(`Show #${uuid} not found`);
@@ -156,11 +163,42 @@ export class ShowsService {
   }
 
   async remove(uuid: string): Promise<void> {
-    const show = await this.findOne(uuid);
+    const show = await this.showsRepository.findOne({ where: { uuid } });
+    if (!show) throw new NotFoundException(`Show #${uuid} not found`);
     if (show.status !== ContentStatus.DRAFT) {
       throw new BadRequestException(`Only draft shows can be deleted. Use the cancel endpoint instead.`);
     }
+
+    const image = await this.showImagesRepository.findOne({ where: { showId: show.id } });
+    if (image) {
+      const filePath = path.join(process.env.HOME ?? '/home/kevin', 'assets', 'shows', 'images', image.filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      await this.showImagesRepository.remove(image);
+    }
+
     await this.showsRepository.remove(show);
+  }
+
+  async publishShow(uuid: string): Promise<Show> {
+    const show = await this.showsRepository.findOne({
+      where: { uuid },
+      relations: ['showDates', 'ticketTypes'],
+    });
+    if (!show) throw new NotFoundException(`Show #${uuid} not found`);
+    if (show.status === ContentStatus.PUBLISHED) {
+      throw new BadRequestException('Show is already published.');
+    }
+    if (show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cancelled shows cannot be published.');
+    }
+    if (!show.showDates?.length) {
+      throw new BadRequestException('Cannot publish a show with no dates.');
+    }
+    if (!show.ticketTypes?.length) {
+      throw new BadRequestException('Cannot publish a show with no ticket types.');
+    }
+    show.status = ContentStatus.PUBLISHED;
+    return this.showsRepository.save(show);
   }
 
   async cancelShow(uuid: string): Promise<Show> {
@@ -178,6 +216,14 @@ export class ShowsService {
 
     show.status = ContentStatus.CANCELED;
     await this.showsRepository.save(show);
+
+    const showDateIds = show.showDates.map((sd) => sd.id);
+    if (showDateIds.length) {
+      await this.showDatesRepository.update(
+        { id: In(showDateIds) },
+        { status: ContentStatus.CANCELED },
+      );
+    }
 
     const emailPromises: Promise<void>[] = [];
     for (const showDate of show.showDates) {
@@ -204,6 +250,9 @@ export class ShowsService {
   async createShowDate(showUuid: string, dto: CreateShowDateDto): Promise<ShowDate> {
     const show = await this.showsRepository.findOne({ where: { uuid: showUuid } });
     if (!show) throw new NotFoundException(`Show #${showUuid} not found`);
+    if (show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cannot add dates to a cancelled show.');
+    }
     const showDate = this.showDatesRepository.create({ ...dto, showId: show.id });
     return this.showDatesRepository.save(showDate);
   }
@@ -214,6 +263,9 @@ export class ShowsService {
       relations: ['show', 'bookings'],
     });
     if (!showDate) throw new NotFoundException(`ShowDate #${dateUuid} not found`);
+    if (showDate.show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cannot update a show date of a cancelled show.');
+    }
 
     if (dto.capacity !== undefined) {
       const confirmedCount = await this.showDatesRepository
@@ -260,12 +312,85 @@ export class ShowsService {
   async removeShowDate(showUuid: string, dateUuid: string): Promise<void> {
     const showDate = await this.showDatesRepository.findOne({
       where: { uuid: dateUuid, show: { uuid: showUuid } },
+      relations: ['show'],
     });
     if (!showDate) throw new NotFoundException(`ShowDate #${dateUuid} not found`);
+    if (showDate.show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cannot delete a show date of a cancelled show.');
+    }
     if (showDate.status !== ContentStatus.DRAFT) {
       throw new BadRequestException(`Only draft show dates can be deleted. Use the cancel endpoint instead.`);
     }
     await this.showDatesRepository.remove(showDate);
+  }
+
+  async publishShowDate(showUuid: string, dateUuid: string): Promise<ShowDate> {
+    const showDate = await this.showDatesRepository.findOne({
+      where: { uuid: dateUuid, show: { uuid: showUuid } },
+      relations: ['show'],
+    });
+    if (!showDate) throw new NotFoundException(`ShowDate #${dateUuid} not found`);
+    if (showDate.show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cannot publish a show date of a cancelled show.');
+    }
+    if (showDate.status === ContentStatus.PUBLISHED) {
+      throw new BadRequestException('Show date is already published.');
+    }
+    if (showDate.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cancelled show dates cannot be published.');
+    }
+    showDate.status = ContentStatus.PUBLISHED;
+    return this.showDatesRepository.save(showDate);
+  }
+
+  async findTicketTypes(showUuid: string): Promise<TicketType[]> {
+    const show = await this.showsRepository.findOne({ where: { uuid: showUuid } });
+    if (!show) throw new NotFoundException(`Show #${showUuid} not found`);
+    return this.ticketTypesRepository.find({
+      where: { showId: show.id },
+      order: { name: 'ASC' },
+    });
+  }
+
+  async createTicketType(showUuid: string, dto: CreateTicketTypeDto): Promise<TicketType> {
+    const show = await this.showsRepository.findOne({ where: { uuid: showUuid } });
+    if (!show) throw new NotFoundException(`Show #${showUuid} not found`);
+    if (show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException(`Cannot add ticket types to a cancelled show.`);
+    }
+    const ticketType = this.ticketTypesRepository.create({ ...dto, showId: show.id });
+    return this.ticketTypesRepository.save(ticketType);
+  }
+
+  async updateTicketType(showUuid: string, typeUuid: string, dto: UpdateTicketTypeDto): Promise<TicketType> {
+    const ticketType = await this.ticketTypesRepository.findOne({
+      where: { uuid: typeUuid, show: { uuid: showUuid } },
+      relations: ['show'],
+    });
+    if (!ticketType) throw new NotFoundException(`TicketType #${typeUuid} not found`);
+    if (ticketType.show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException(`Cannot update ticket types of a cancelled show.`);
+    }
+    if (ticketType.show.status === ContentStatus.PUBLISHED && dto.price !== undefined && +dto.price !== +ticketType.price) {
+      throw new BadRequestException(`Cannot change the price of a ticket type once the show is published. Create a new ticket type instead.`);
+    }
+    Object.assign(ticketType, dto);
+    return this.ticketTypesRepository.save(ticketType);
+  }
+
+  async removeTicketType(showUuid: string, typeUuid: string): Promise<void> {
+    const ticketType = await this.ticketTypesRepository.findOne({
+      where: { uuid: typeUuid, show: { uuid: showUuid } },
+      relations: ['show', 'tickets'],
+    });
+    if (!ticketType) throw new NotFoundException(`TicketType #${typeUuid} not found`);
+    if (ticketType.show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException(`Cannot delete ticket types from a cancelled show.`);
+    }
+    if (ticketType.tickets?.length > 0) {
+      throw new BadRequestException(`Cannot delete a ticket type that has tickets issued against it.`);
+    }
+    await this.ticketTypesRepository.remove(ticketType);
   }
 
   async cancelShowDate(showUuid: string, dateUuid: string): Promise<ShowDate> {

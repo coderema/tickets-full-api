@@ -38,6 +38,15 @@ export class MailService {
     `);
   }
 
+  async sendBookingCancelled(to: string, customerName: string, showName: string, date: string, time: string | null): Promise<void> {
+    const when = time ? `${date} at ${time}` : date;
+    await this.send(to, `Booking Cancelled: ${showName}`, `
+      <p>Dear ${customerName},</p>
+      <p>Your booking for <strong>${showName}</strong> on <strong>${when}</strong> has been cancelled.</p>
+      <p>Please contact us if you have any questions.</p>
+    `);
+  }
+
   async sendShowDateUpdated(to: string, customerName: string, showName: string, date: string, time: string | null, capacity: number | null): Promise<void> {
     const when = time ? `${date} at ${time}` : date;
     await this.send(to, `Show Date Updated: ${showName}`, `
