@@ -9,6 +9,7 @@ import {
   BeforeInsert,
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { ContentStatus } from './enums';
 import type { Show } from './show.entity';
 import type { Booking } from './booking.entity';
 
@@ -31,6 +32,9 @@ export class ShowDate {
 
   @Column({ type: 'smallint', unsigned: true, nullable: true })
   capacity: number | null;
+
+  @Column({ type: 'enum', enum: ContentStatus, default: ContentStatus.DRAFT })
+  status: ContentStatus;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

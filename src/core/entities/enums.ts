@@ -1,3 +1,9 @@
+export enum ContentStatus {
+  DRAFT     = 'draft',
+  PUBLISHED = 'published',
+  CANCELED  = 'canceled',
+}
+
 export enum BookingStatus {
   PENDING    = 'pending',
   CONFIRMED  = 'confirmed',

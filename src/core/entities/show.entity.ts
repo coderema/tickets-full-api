@@ -3,13 +3,16 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
+  OneToOne,
   CreateDateColumn,
   UpdateDateColumn,
   BeforeInsert,
 } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { ContentStatus } from './enums';
 import type { ShowDate } from './show-date.entity';
 import type { TicketType } from './ticket-type.entity';
+import type { ShowImage } from './show-image.entity';
 
 @Entity('shows')
 export class Show {
@@ -28,6 +31,9 @@ export class Show {
   @Column({ name: 'logo_url', type: 'text', nullable: true })
   logoUrl: string | null;
 
+  @Column({ type: 'enum', enum: ContentStatus, default: ContentStatus.DRAFT })
+  status: ContentStatus;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
@@ -42,6 +48,9 @@ export class Show {
 
   @OneToMany('TicketType', (tt: TicketType) => tt.show)
   ticketTypes: TicketType[];
+
+  @OneToOne('ShowImage', (img: ShowImage) => img.show)
+  image: ShowImage;
 
   @BeforeInsert()
   generateUuid() {
