@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, UploadedFile, UseInterceptors, Res, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, UploadedFile, UseInterceptors, Res, NotFoundException, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiQuery, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -105,6 +105,19 @@ export class ShowsController {
   @Get(':id/dates/:dateId')
   findShowDate(@Param('id') id: string, @Param('dateId') dateId: string) {
     return this.showsService.findShowDate(id, dateId);
+  }
+
+  @Post(':id/duplicate')
+  duplicate(@Param('id') id: string) {
+    return this.showsService.duplicate(id);
+  }
+
+  @Post(':id/dates/bulk')
+  createShowDatesBulk(
+    @Param('id') id: string,
+    @Body() body: { dates: Array<{ date: string; time?: string; capacity?: number; isActive: boolean }> },
+  ) {
+    return this.showsService.createShowDatesBulk(id, body.dates);
   }
 
   @Post(':id/dates')

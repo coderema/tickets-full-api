@@ -47,6 +47,15 @@ export class MailService {
     `);
   }
 
+  async sendBookingConfirmed(to: string, customerName: string, showName: string, date: string, time: string | null): Promise<void> {
+    const when = time ? `${date} at ${time}` : date;
+    await this.send(to, `Booking Confirmed: ${showName}`, `
+      <p>Dear ${customerName},</p>
+      <p>Your booking for <strong>${showName}</strong> on <strong>${when}</strong> has been confirmed.</p>
+      <p>Please contact us if you have any questions.</p>
+    `);
+  }
+
   async sendShowDateUpdated(to: string, customerName: string, showName: string, date: string, time: string | null, capacity: number | null): Promise<void> {
     const when = time ? `${date} at ${time}` : date;
     await this.send(to, `Show Date Updated: ${showName}`, `

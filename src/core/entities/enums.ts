@@ -1,3 +1,8 @@
+export enum UserRole {
+  ADMIN       = 'admin',
+  SUPER_ADMIN = 'super_admin',
+}
+
 export enum ContentStatus {
   DRAFT     = 'draft',
   PUBLISHED = 'published',

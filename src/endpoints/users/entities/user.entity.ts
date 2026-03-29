@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { UserRole } from '../../../core/entities/enums';
 
 @Entity('users')
 export class User {
@@ -13,4 +14,13 @@ export class User {
 
   @Column({ select: false })
   password: string;
+
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.ADMIN })
+  role: UserRole;
+
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
 }

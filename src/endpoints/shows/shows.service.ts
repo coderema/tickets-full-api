@@ -393,6 +393,54 @@ export class ShowsService {
     await this.ticketTypesRepository.remove(ticketType);
   }
 
+  async duplicate(uuid: string): Promise<Show> {
+    const source = await this.showsRepository.findOne({
+      where: { uuid },
+      relations: ['ticketTypes'],
+    });
+    if (!source) throw new NotFoundException(`Show #${uuid} not found`);
+
+    const newShow = await this.showsRepository.save(
+      this.showsRepository.create({
+        name: `${source.name} (Copy)`,
+        description: source.description,
+        status: ContentStatus.DRAFT,
+      }),
+    );
+
+    if (source.ticketTypes?.length) {
+      await this.ticketTypesRepository.save(
+        source.ticketTypes.map((tt) =>
+          this.ticketTypesRepository.create({
+            showId: newShow.id,
+            name: tt.name,
+            price: tt.price,
+            description: tt.description,
+            isActive: tt.isActive,
+          }),
+        ),
+      );
+    }
+
+    return this.findOne(newShow.uuid);
+  }
+
+  async createShowDatesBulk(
+    showUuid: string,
+    dates: Array<{ date: string; time?: string; capacity?: number; isActive: boolean }>,
+  ): Promise<ShowDate[]> {
+    const show = await this.showsRepository.findOne({ where: { uuid: showUuid } });
+    if (!show) throw new NotFoundException(`Show #${showUuid} not found`);
+    if (show.status === ContentStatus.CANCELED) {
+      throw new BadRequestException('Cannot add dates to a cancelled show.');
+    }
+
+    const showDates = this.showDatesRepository.create(
+      dates.map((d) => ({ ...d, showId: show.id })),
+    );
+    return this.showDatesRepository.save(showDates);
+  }
+
   async cancelShowDate(showUuid: string, dateUuid: string): Promise<ShowDate> {
     const showDate = await this.showDatesRepository.findOne({
       where: { uuid: dateUuid, show: { uuid: showUuid } },

@@ -112,8 +112,41 @@ export class BookingsService {
     filters?: { search?: string; dateFrom?: string; dateTo?: string; showUuid?: string; showDateUuid?: string; status?: string },
   ): Promise<PageModel<Booking> | Partial<Booking>[]> {
     if (!params.pagination) {
-      const query = this.bookingsRepository.createQueryBuilder('booking');
-      query.select(params.fields.map((f) => `booking.${f}`));
+      const query = this.bookingsRepository
+        .createQueryBuilder('booking')
+        .leftJoin('booking.showDate', 'showDate')
+        .leftJoin('showDate.show', 'show');
+
+      if (params.fields?.length) {
+        query.select([
+          ...params.fields.map((f) => `booking.${f}`),
+          'showDate.date', 'showDate.time',
+          'show.name',
+        ]);
+      }
+
+      if (filters?.search) {
+        query.andWhere(
+          '(booking.customerName LIKE :search OR booking.customerEmail LIKE :search)',
+          { search: `%${filters.search}%` },
+        );
+      }
+      if (filters?.dateFrom) {
+        query.andWhere('showDate.date >= :dateFrom', { dateFrom: filters.dateFrom });
+      }
+      if (filters?.dateTo) {
+        query.andWhere('showDate.date <= :dateTo', { dateTo: filters.dateTo });
+      }
+      if (filters?.showUuid) {
+        query.andWhere('show.uuid = :showUuid', { showUuid: filters.showUuid });
+      }
+      if (filters?.showDateUuid) {
+        query.andWhere('showDate.uuid = :showDateUuid', { showDateUuid: filters.showDateUuid });
+      }
+      if (filters?.status) {
+        query.andWhere('booking.status = :status', { status: filters.status });
+      }
+
       return query.getMany();
     }
 
@@ -197,7 +230,10 @@ export class BookingsService {
   }
 
   async confirmBooking(uuid: string): Promise<Booking> {
-    const booking = await this.bookingsRepository.findOne({ where: { uuid } });
+    const booking = await this.bookingsRepository.findOne({
+      where: { uuid },
+      relations: ['showDate', 'showDate.show'],
+    });
     if (!booking) throw new NotFoundException(`Booking #${uuid} not found`);
     if (booking.status === BookingStatus.CONFIRMED) {
       throw new BadRequestException('Booking is already confirmed.');
@@ -206,7 +242,17 @@ export class BookingsService {
       throw new BadRequestException('Cancelled bookings cannot be confirmed.');
     }
     booking.status = BookingStatus.CONFIRMED;
-    return this.bookingsRepository.save(booking);
+    await this.bookingsRepository.save(booking);
+
+    await this.mailService.sendBookingConfirmed(
+      booking.customerEmail,
+      booking.customerName,
+      booking.showDate.show.name,
+      booking.showDate.date,
+      booking.showDate.time,
+    );
+
+    return booking;
   }
 
   async cancelBooking(uuid: string): Promise<Booking> {

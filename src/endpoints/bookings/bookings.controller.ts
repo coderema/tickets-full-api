@@ -48,10 +48,10 @@ export class BookingsController {
     @Query('status') status?: string,
   ) {
     if (pagination === 'false') {
-      return this.bookingsService.findAll({
-        pagination: false,
-        fields: fields as [string, ...string[]],
-      });
+      return this.bookingsService.findAll(
+        { pagination: false, fields: fields as [string, ...string[]] },
+        { search, dateFrom, dateTo, showUuid, showDateUuid, status },
+      );
     }
 
     return this.bookingsService.findAll(
