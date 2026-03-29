@@ -79,6 +79,11 @@ export class BookingsController {
     return this.bookingsService.findOne(id);
   }
 
+  @Patch(':id/confirm')
+  confirmBooking(@Param('id') id: string) {
+    return this.bookingsService.confirmBooking(id);
+  }
+
   @Patch(':id/cancel')
   cancelBooking(@Param('id') id: string) {
     return this.bookingsService.cancelBooking(id);

@@ -196,6 +196,19 @@ export class BookingsService {
     return this.bookingsRepository.save(booking);
   }
 
+  async confirmBooking(uuid: string): Promise<Booking> {
+    const booking = await this.bookingsRepository.findOne({ where: { uuid } });
+    if (!booking) throw new NotFoundException(`Booking #${uuid} not found`);
+    if (booking.status === BookingStatus.CONFIRMED) {
+      throw new BadRequestException('Booking is already confirmed.');
+    }
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('Cancelled bookings cannot be confirmed.');
+    }
+    booking.status = BookingStatus.CONFIRMED;
+    return this.bookingsRepository.save(booking);
+  }
+
   async cancelBooking(uuid: string): Promise<Booking> {
     const booking = await this.bookingsRepository.findOne({
       where: { uuid },
