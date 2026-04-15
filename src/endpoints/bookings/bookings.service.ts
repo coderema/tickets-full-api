@@ -287,7 +287,7 @@ export class BookingsService {
   async generateTicketHtml(bookingUuid: string, ticketUuid: string): Promise<{ ticket: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { uuid: bookingUuid },
-      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show'],
+      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show', 'showDate.show.image'],
     });
     if (!booking) throw new NotFoundException(`Booking #${bookingUuid} not found`);
 
@@ -298,10 +298,10 @@ export class BookingsService {
     const showDateStr = [booking.showDate.date, booking.showDate.time].filter(Boolean).join(' ');
     const purchaseDate = booking.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const showImageUrl = 'https://fineartsguild.org/wp-content/uploads/2026/02/ecef77dd-1.png';
+    const showImageUrl = show.image?.url ?? null;
 
     const [showImageBase64, qrDataUrl] = await Promise.all([
-      fetchImageAsBase64(showImageUrl),
+      showImageUrl ? fetchImageAsBase64(showImageUrl) : Promise.resolve(null),
       QRCode.toDataURL(ticketRecord.uuid, { width: 120, margin: 1 }),
     ]);
 
