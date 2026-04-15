@@ -7,8 +7,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
 import * as QRCode from 'qrcode';
-import * as https from 'https';
-import * as http from 'http';
 import { Show } from '../../core/entities/show.entity';
 import { ShowDate } from '../../core/entities/show-date.entity';
 import { TicketType } from '../../core/entities/ticket-type.entity';
@@ -24,21 +22,6 @@ const compiledTemplate = Handlebars.compile(
   fs.readFileSync(path.join(__dirname, '..', 'bookings', 'templates', 'ticket.hbs'), 'utf8'),
 );
 
-function fetchImageAsBase64(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
-    client.get(url, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => {
-        const b64 = Buffer.concat(chunks).toString('base64');
-        const mime = res.headers['content-type'] ?? 'image/jpeg';
-        resolve(`data:${mime};base64,${b64}`);
-      });
-      res.on('error', reject);
-    }).on('error', reject);
-  });
-}
 
 @Injectable()
 export class PublicService {
@@ -136,11 +119,7 @@ export class PublicService {
     const showDateStr = [booking.showDate.date, booking.showDate.time].filter(Boolean).join(' ');
     const purchaseDate = booking.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const showImageUrl = show.image?.url ?? null;
-
-    const [showImageBase64, qrDataUrl] = await Promise.all([
-      showImageUrl ? fetchImageAsBase64(showImageUrl).catch(() => null) : Promise.resolve(null),
-      QRCode.toDataURL(ticketRecord.uuid, { width: 120, margin: 1 }),
-    ]);
+    const qrDataUrl = await QRCode.toDataURL(ticketRecord.uuid, { width: 120, margin: 1 });
 
     return compiledTemplate({
       tickets: [{
@@ -154,7 +133,7 @@ export class PublicService {
       logoUrl: show.logoUrl ?? null,
       showTitle: show.name,
       showDate: showDateStr,
-      showImageUrl: showImageBase64 ?? null,
+      showImageUrl: showImageUrl,
       customerName: booking.customerName,
       purchaseDate,
     });
@@ -282,10 +261,9 @@ export class PublicService {
     const purchaseDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const showImageUrl = showDate.show.image?.url ?? null;
-    const [showImageBase64, ...qrDataUrls] = await Promise.all([
-      showImageUrl ? fetchImageAsBase64(showImageUrl).catch(() => null) : Promise.resolve(null),
-      ...savedTickets.map((t) => QRCode.toDataURL(t.uuid, { width: 120, margin: 1 })),
-    ]);
+    const qrDataUrls = await Promise.all(
+      savedTickets.map((t) => QRCode.toDataURL(t.uuid, { width: 120, margin: 1 })),
+    );
 
     const ticketHtmls = savedTickets.map((ticket, i) => {
       const tt = ticketTypeMap.get(ticketInputs[i].ticketTypeUuid);
@@ -301,7 +279,7 @@ export class PublicService {
         logoUrl: showDate.show.logoUrl ?? null,
         showTitle: showDate.show.name,
         showDate: showDateStr,
-        showImageUrl: showImageBase64 ?? null,
+        showImageUrl: showImageUrl,
         customerName: dto.cardName,
         purchaseDate,
       });
