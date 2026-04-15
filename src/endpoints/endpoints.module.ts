@@ -9,8 +9,9 @@ import { CustomersModule } from './customers/customers.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { ScanModule } from './scan/scan.module';
 import { PublicModule } from './public/public.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, BookingsModule, ShowsModule, HomeModule, ReportsModule, CustomersModule, EmailTemplatesModule, ScanModule, PublicModule]
+  imports: [UsersModule, AuthModule, BookingsModule, ShowsModule, HomeModule, ReportsModule, CustomersModule, EmailTemplatesModule, ScanModule, PublicModule, HealthModule]
 })
 export class EndpointsModule {}
