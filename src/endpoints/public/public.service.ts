@@ -310,7 +310,7 @@ export class PublicService {
     // 9. Send confirmation email
     const appUrl = this.config.get<string>('APP_URL') ?? '';
     const ticketLinksHtml = savedTickets
-      .map((t, i) => `<a href="${appUrl}/public/tickets/${booking.uuid}/${t.uuid}" style="display:block;margin:8px 0;color:#1a1a1a">View ticket for ${ticketInputs[i].entity.holderName}</a>`)
+      .map((t, i) => `<a href="${appUrl}/public/tickets/${booking.uuid}/${t.uuid}" style="display:block;margin:8px 0;padding:12px 16px;background:#1a1a1a;color:#ffffff;text-decoration:none;border-radius:4px;font-size:14px;font-weight:600">View ticket for ${ticketInputs[i].entity.holderName} &rarr;</a>`)
       .join('');
 
     await this.mailService.sendBookingConfirmed(dto.email, {
