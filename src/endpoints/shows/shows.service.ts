@@ -235,7 +235,7 @@ export class ShowsService {
     for (const showDate of show.showDates) {
       for (const booking of showDate.bookings ?? []) {
         emailPromises.push(
-          this.mailService.sendShowCancelled(booking.customerEmail, booking.customerName, show.name),
+          this.mailService.sendShowCancelled(booking.customerEmail, { customerName: booking.customerName, showName: show.name }),
         );
       }
     }
@@ -315,14 +315,13 @@ export class ShowsService {
 
     if (isPublished && hasScheduleChange) {
       const emailPromises = (showDate.bookings ?? []).map((booking) =>
-        this.mailService.sendShowDateUpdated(
-          booking.customerEmail,
-          booking.customerName,
-          showDate.show.name,
-          saved.date,
-          saved.time,
-          saved.capacity,
-        ),
+        this.mailService.sendShowDateUpdated(booking.customerEmail, {
+          customerName: booking.customerName,
+          showName: showDate.show.name,
+          showDate: saved.date,
+          showTime: saved.time,
+          capacity: saved.capacity,
+        }),
       );
       await Promise.all(emailPromises);
     }
@@ -542,13 +541,12 @@ export class ShowsService {
     await this.showDatesRepository.save(showDate);
 
     const emailPromises = (showDate.bookings ?? []).map((booking) =>
-      this.mailService.sendShowDateCancelled(
-        booking.customerEmail,
-        booking.customerName,
-        showDate.show.name,
-        showDate.date,
-        showDate.time,
-      ),
+      this.mailService.sendShowDateCancelled(booking.customerEmail, {
+        customerName: booking.customerName,
+        showName: showDate.show.name,
+        showDate: showDate.date,
+        showTime: showDate.time,
+      }),
     );
     await Promise.all(emailPromises);
 

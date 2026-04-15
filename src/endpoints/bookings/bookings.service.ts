@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
@@ -50,6 +51,7 @@ export class BookingsService {
     @InjectRepository(CashPayment)
     private readonly cashPaymentsRepository: Repository<CashPayment>,
     private readonly mailService: MailService,
+    private readonly config: ConfigService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, receivedBy: string): Promise<Booking> {
@@ -232,7 +234,7 @@ export class BookingsService {
   async confirmBooking(uuid: string): Promise<Booking> {
     const booking = await this.bookingsRepository.findOne({
       where: { uuid },
-      relations: ['showDate', 'showDate.show'],
+      relations: ['showDate', 'showDate.show', 'tickets'],
     });
     if (!booking) throw new NotFoundException(`Booking #${uuid} not found`);
     if (booking.status === BookingStatus.CONFIRMED) {
@@ -244,13 +246,20 @@ export class BookingsService {
     booking.status = BookingStatus.CONFIRMED;
     await this.bookingsRepository.save(booking);
 
-    await this.mailService.sendBookingConfirmed(
-      booking.customerEmail,
-      booking.customerName,
-      booking.showDate.show.name,
-      booking.showDate.date,
-      booking.showDate.time,
-    );
+    const appUrl = this.config.get<string>('APP_URL') ?? '';
+    const ticketLinksHtml = (booking.tickets ?? [])
+      .map((t) => `<a href="${appUrl}/public/tickets/${booking.uuid}/${t.uuid}" style="display:block;margin:8px 0;color:#1a1a1a">View ticket for ${t.holderName}</a>`)
+      .join('');
+
+    await this.mailService.sendBookingConfirmed(booking.customerEmail, {
+      customerName: booking.customerName,
+      showName: booking.showDate.show.name,
+      showDate: booking.showDate.date,
+      showTime: booking.showDate.time,
+      bookingUuid: booking.uuid,
+      totalAmount: `$${Number(booking.totalAmount).toFixed(2)}`,
+      ticketLinksHtml,
+    });
 
     return booking;
   }
@@ -268,13 +277,14 @@ export class BookingsService {
     booking.status = BookingStatus.CANCELLED;
     await this.bookingsRepository.save(booking);
 
-    await this.mailService.sendBookingCancelled(
-      booking.customerEmail,
-      booking.customerName,
-      booking.showDate.show.name,
-      booking.showDate.date,
-      booking.showDate.time,
-    );
+    await this.mailService.sendBookingCancelled(booking.customerEmail, {
+      customerName: booking.customerName,
+      showName: booking.showDate.show.name,
+      showDate: booking.showDate.date,
+      showTime: booking.showDate.time,
+      bookingUuid: booking.uuid,
+      totalAmount: `$${Number(booking.totalAmount).toFixed(2)}`,
+    });
 
     return booking;
   }

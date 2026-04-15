@@ -3,8 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailTemplate } from '../../core/entities/email-template.entity';
 
-const TEMPLATE_VARIABLES = ['customerName', 'customerEmail', 'showName', 'showDate', 'showTime', 'bookingUuid', 'totalAmount'];
-
 const DEFAULTS: Omit<EmailTemplate, 'updatedAt'>[] = [
   {
     key: 'booking_confirmation',
@@ -14,8 +12,10 @@ const DEFAULTS: Omit<EmailTemplate, 'updatedAt'>[] = [
 <p>Your booking for <strong>{{showName}}</strong> on <strong>{{showDate}}{{showTime}}</strong> has been confirmed.</p>
 <p>Booking reference: <strong>{{bookingUuid}}</strong></p>
 <p>Total amount: <strong>{{totalAmount}}</strong></p>
+<p>Your tickets are ready to view and print:</p>
+{{ticketLinksHtml}}
 <p>Thank you for your booking!</p>`,
-    variables: TEMPLATE_VARIABLES,
+    variables: ['customerName', 'showName', 'showDate', 'showTime', 'bookingUuid', 'totalAmount', 'ticketLinksHtml'],
   },
   {
     key: 'booking_cancellation',
@@ -24,8 +24,37 @@ const DEFAULTS: Omit<EmailTemplate, 'updatedAt'>[] = [
     body: `<p>Dear {{customerName}},</p>
 <p>Your booking for <strong>{{showName}}</strong> on <strong>{{showDate}}{{showTime}}</strong> has been cancelled.</p>
 <p>Booking reference: <strong>{{bookingUuid}}</strong></p>
+<p>Total amount: <strong>{{totalAmount}}</strong></p>
 <p>Please contact us if you have any questions.</p>`,
-    variables: TEMPLATE_VARIABLES,
+    variables: ['customerName', 'showName', 'showDate', 'showTime', 'bookingUuid', 'totalAmount'],
+  },
+  {
+    key: 'show_cancellation',
+    name: 'Show Cancellation',
+    subject: 'Show Cancelled: {{showName}}',
+    body: `<p>Dear {{customerName}},</p>
+<p>We regret to inform you that <strong>{{showName}}</strong> has been cancelled.</p>
+<p>Please contact us regarding your refund.</p>`,
+    variables: ['customerName', 'showName'],
+  },
+  {
+    key: 'show_date_cancellation',
+    name: 'Show Date Cancellation',
+    subject: 'Show Date Cancelled: {{showName}}',
+    body: `<p>Dear {{customerName}},</p>
+<p>The <strong>{{showName}}</strong> performance on <strong>{{showDate}}{{showTime}}</strong> has been cancelled.</p>
+<p>Please contact us regarding your refund.</p>`,
+    variables: ['customerName', 'showName', 'showDate', 'showTime'],
+  },
+  {
+    key: 'show_date_updated',
+    name: 'Show Date Updated',
+    subject: 'Show Date Updated: {{showName}}',
+    body: `<p>Dear {{customerName}},</p>
+<p>Your booking for <strong>{{showName}}</strong> has been updated.</p>
+<p>New details: <strong>{{showDate}}{{showTime}}</strong>{{capacity}}</p>
+<p>Your booking remains valid. Please contact us if you have any questions.</p>`,
+    variables: ['customerName', 'showName', 'showDate', 'showTime', 'capacity'],
   },
 ];
 
@@ -66,15 +95,17 @@ export class EmailTemplatesService implements OnModuleInit {
     const sampleValues: Record<string, string> = {
       customerName: 'Jane Smith',
       customerEmail: 'jane@example.com',
-      showName: template.name.replace('Booking ', ''),
+      showName: template.name.replace('Booking ', '').replace('Show ', ''),
       showDate: '2026-06-15',
       showTime: ' at 19:30',
       bookingUuid: 'abc123-preview',
       totalAmount: '$45.00',
+      capacity: ' — capacity: 200',
+      ticketLinksHtml: '<a href="#" style="display:block;margin:8px 0">View ticket for Jane Smith</a>',
     };
 
     const render = (str: string) =>
-      str.replace(/\{\{(\w+)\}\}/g, (_, key) => sampleValues[key] ?? `{{${key}}}`);
+      str.replace(/\{\{(\w+)\}\}/g, (_, k) => sampleValues[k] ?? `{{${k}}}`);
 
     const renderedSubject = render(dto.subject);
     const renderedBody = render(dto.body);

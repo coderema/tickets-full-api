@@ -122,11 +122,49 @@ export class PublicService {
     };
   }
 
+  async getTicket(bookingUuid: string, ticketUuid: string): Promise<string> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { uuid: bookingUuid },
+      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show', 'showDate.show.image'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const ticketRecord = booking.tickets.find((t) => t.uuid === ticketUuid);
+    if (!ticketRecord) throw new NotFoundException('Ticket not found');
+
+    const show = booking.showDate.show;
+    const showDateStr = [booking.showDate.date, booking.showDate.time].filter(Boolean).join(' ');
+    const purchaseDate = booking.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const showImageUrl = show.image?.url ?? null;
+
+    const [showImageBase64, qrDataUrl] = await Promise.all([
+      showImageUrl ? fetchImageAsBase64(showImageUrl).catch(() => null) : Promise.resolve(null),
+      QRCode.toDataURL(ticketRecord.uuid, { width: 120, margin: 1 }),
+    ]);
+
+    return compiledTemplate({
+      tickets: [{
+        id: ticketRecord.uuid,
+        name: ticketRecord.holderName,
+        type: ticketRecord.ticketType?.name ?? '',
+        price: Number(ticketRecord.unitPrice).toFixed(2),
+        qrDataUrl,
+      }],
+      bookingRef: booking.uuid,
+      logoUrl: show.logoUrl ?? null,
+      showTitle: show.name,
+      showDate: showDateStr,
+      showImageUrl: showImageBase64 ?? null,
+      customerName: booking.customerName,
+      purchaseDate,
+    });
+  }
+
   async createBooking(dto: PublicBookingDto): Promise<{ bookingUuid: string; tickets: string[] }> {
     // 1. Validate show date
     const showDate = await this.showDatesRepository.findOne({
       where: { uuid: dto.showDateUuid, status: ContentStatus.PUBLISHED },
-      relations: ['show'],
+      relations: ['show', 'show.image'],
     });
     if (!showDate) throw new NotFoundException('Show date not found or not available.');
 
@@ -243,8 +281,9 @@ export class PublicService {
     const showDateStr = [showDate.date, showDate.time].filter(Boolean).join(' ');
     const purchaseDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+    const showImageUrl = showDate.show.image?.url ?? null;
     const [showImageBase64, ...qrDataUrls] = await Promise.all([
-      dto.logoUrl ? fetchImageAsBase64(dto.logoUrl).catch(() => null) : Promise.resolve(null),
+      showImageUrl ? fetchImageAsBase64(showImageUrl).catch(() => null) : Promise.resolve(null),
       ...savedTickets.map((t) => QRCode.toDataURL(t.uuid, { width: 120, margin: 1 })),
     ]);
 
@@ -269,13 +308,20 @@ export class PublicService {
     });
 
     // 9. Send confirmation email
-    await this.mailService.sendBookingConfirmed(
-      dto.email,
-      dto.cardName,
-      showDate.show.name,
-      showDate.date,
-      showDate.time,
-    );
+    const appUrl = this.config.get<string>('APP_URL') ?? '';
+    const ticketLinksHtml = savedTickets
+      .map((t, i) => `<a href="${appUrl}/public/tickets/${booking.uuid}/${t.uuid}" style="display:block;margin:8px 0;color:#1a1a1a">View ticket for ${ticketInputs[i].entity.holderName}</a>`)
+      .join('');
+
+    await this.mailService.sendBookingConfirmed(dto.email, {
+      customerName: dto.cardName,
+      showName: showDate.show.name,
+      showDate: showDate.date,
+      showTime: showDate.time,
+      bookingUuid: booking.uuid,
+      totalAmount: `$${totalAmount.toFixed(2)}`,
+      ticketLinksHtml,
+    });
 
     return { bookingUuid: booking.uuid, tickets: ticketHtmls };
   }
