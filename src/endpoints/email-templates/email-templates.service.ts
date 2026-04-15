@@ -67,10 +67,7 @@ export class EmailTemplatesService implements OnModuleInit {
 
   async onModuleInit() {
     for (const defaults of DEFAULTS) {
-      const exists = await this.repo.findOne({ where: { key: defaults.key } });
-      if (!exists) {
-        await this.repo.save(this.repo.create(defaults));
-      }
+      await this.repo.upsert(defaults, ['key']);
     }
   }
 
