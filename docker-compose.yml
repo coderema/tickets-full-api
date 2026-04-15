@@ -1,0 +1,40 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: ${DB_DATABASE}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+
+networks:
+  app-network:
+    external: true
+    name: docker-stack_app-network

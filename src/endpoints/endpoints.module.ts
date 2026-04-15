@@ -7,8 +7,10 @@ import { HomeModule } from './home/home.module';
 import { ReportsModule } from './reports/reports.module';
 import { CustomersModule } from './customers/customers.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { ScanModule } from './scan/scan.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, BookingsModule, ShowsModule, HomeModule, ReportsModule, CustomersModule, EmailTemplatesModule]
+  imports: [UsersModule, AuthModule, BookingsModule, ShowsModule, HomeModule, ReportsModule, CustomersModule, EmailTemplatesModule, ScanModule, PublicModule]
 })
 export class EndpointsModule {}

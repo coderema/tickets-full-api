@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthGuard } from './guards/auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { MailService } from './mail/mail.service';
 
 @Global()
@@ -17,7 +18,7 @@ import { MailService } from './mail/mail.service';
       }),
     }),
   ],
-  providers: [AuthGuard, MailService],
-  exports: [AuthGuard, JwtModule, MailService],
+  providers: [AuthGuard, RolesGuard, MailService],
+  exports: [AuthGuard, RolesGuard, JwtModule, MailService],
 })
 export class CoreModule {}

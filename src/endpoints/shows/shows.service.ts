@@ -9,6 +9,8 @@ import { Show } from '../../core/entities/show.entity';
 import { ShowDate } from '../../core/entities/show-date.entity';
 import { ShowImage } from '../../core/entities/show-image.entity';
 import { TicketType } from '../../core/entities/ticket-type.entity';
+import { Ticket } from '../../core/entities/ticket.entity';
+import { Attendance } from '../../core/entities/attendance.entity';
 import { ContentStatus } from '../../core/entities/enums';
 import { BookingStatus } from '../../core/entities/enums';
 import { MailService } from '../../core/mail/mail.service';
@@ -31,6 +33,10 @@ export class ShowsService {
     private readonly showImagesRepository: Repository<ShowImage>,
     @InjectRepository(TicketType)
     private readonly ticketTypesRepository: Repository<TicketType>,
+    @InjectRepository(Ticket)
+    private readonly ticketsRepository: Repository<Ticket>,
+    @InjectRepository(Attendance)
+    private readonly attendanceRepository: Repository<Attendance>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {}
@@ -247,11 +253,20 @@ export class ShowsService {
     return showDate;
   }
 
+  private isPastDate(date: string): boolean {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(date) < today;
+  }
+
   async createShowDate(showUuid: string, dto: CreateShowDateDto): Promise<ShowDate> {
     const show = await this.showsRepository.findOne({ where: { uuid: showUuid } });
     if (!show) throw new NotFoundException(`Show #${showUuid} not found`);
     if (show.status === ContentStatus.CANCELED) {
       throw new BadRequestException('Cannot add dates to a cancelled show.');
+    }
+    if (this.isPastDate(dto.date)) {
+      throw new BadRequestException('Cannot create a show date in the past.');
     }
     const showDate = this.showDatesRepository.create({ ...dto, showId: show.id });
     return this.showDatesRepository.save(showDate);
@@ -265,6 +280,12 @@ export class ShowsService {
     if (!showDate) throw new NotFoundException(`ShowDate #${dateUuid} not found`);
     if (showDate.show.status === ContentStatus.CANCELED) {
       throw new BadRequestException('Cannot update a show date of a cancelled show.');
+    }
+    if (this.isPastDate(showDate.date)) {
+      throw new BadRequestException('Cannot update a show date that has already passed.');
+    }
+    if (dto.date !== undefined && this.isPastDate(dto.date)) {
+      throw new BadRequestException('Cannot reschedule a show date to a date in the past.');
     }
 
     if (dto.capacity !== undefined) {
@@ -318,6 +339,9 @@ export class ShowsService {
     if (showDate.show.status === ContentStatus.CANCELED) {
       throw new BadRequestException('Cannot delete a show date of a cancelled show.');
     }
+    if (this.isPastDate(showDate.date)) {
+      throw new BadRequestException('Cannot delete a show date that has already passed.');
+    }
     if (showDate.status !== ContentStatus.DRAFT) {
       throw new BadRequestException(`Only draft show dates can be deleted. Use the cancel endpoint instead.`);
     }
@@ -338,6 +362,9 @@ export class ShowsService {
     }
     if (showDate.status === ContentStatus.CANCELED) {
       throw new BadRequestException('Cancelled show dates cannot be published.');
+    }
+    if (this.isPastDate(showDate.date)) {
+      throw new BadRequestException('Cannot publish a show date that has already passed.');
     }
     showDate.status = ContentStatus.PUBLISHED;
     return this.showDatesRepository.save(showDate);
@@ -435,10 +462,64 @@ export class ShowsService {
       throw new BadRequestException('Cannot add dates to a cancelled show.');
     }
 
+    const pastDate = dates.find((d) => this.isPastDate(d.date));
+    if (pastDate) {
+      throw new BadRequestException(`Cannot create a show date in the past: ${pastDate.date}.`);
+    }
+
     const showDates = this.showDatesRepository.create(
       dates.map((d) => ({ ...d, showId: show.id })),
     );
     return this.showDatesRepository.save(showDates);
+  }
+
+  async getAttendance(showUuid: string, dateUuid: string): Promise<{
+    ticketUuid: string;
+    holderName: string;
+    ticketType: string;
+    checkedIn: boolean;
+    scannedAt: Date | null;
+    bookingUuid: string;
+    customerName: string;
+  }[]> {
+    const showDate = await this.showDatesRepository.findOne({
+      where: { uuid: dateUuid, show: { uuid: showUuid } },
+    });
+    if (!showDate) throw new NotFoundException(`ShowDate #${dateUuid} not found`);
+
+    const rows = await this.ticketsRepository
+      .createQueryBuilder('ticket')
+      .innerJoin('ticket.booking', 'booking')
+      .innerJoin('ticket.ticketType', 'ticketType')
+      .leftJoin('ticket.attendance', 'attendance')
+      .where('booking.showDateId = :showDateId', { showDateId: showDate.id })
+      .andWhere('booking.status = :status', { status: BookingStatus.CONFIRMED })
+      .select('ticket.uuid', 'ticketUuid')
+      .addSelect('ticket.holderName', 'holderName')
+      .addSelect('ticketType.name', 'ticketType')
+      .addSelect('attendance.scannedAt', 'scannedAt')
+      .addSelect('booking.uuid', 'bookingUuid')
+      .addSelect('booking.customerName', 'customerName')
+      .orderBy('booking.customerName', 'ASC')
+      .addOrderBy('ticket.holderName', 'ASC')
+      .getRawMany<{
+        ticketUuid: string;
+        holderName: string;
+        ticketType: string;
+        scannedAt: Date | null;
+        bookingUuid: string;
+        customerName: string;
+      }>();
+
+    return rows.map((r) => ({
+      ticketUuid: r.ticketUuid,
+      holderName: r.holderName,
+      ticketType: r.ticketType,
+      checkedIn: r.scannedAt !== null,
+      scannedAt: r.scannedAt ?? null,
+      bookingUuid: r.bookingUuid,
+      customerName: r.customerName,
+    }));
   }
 
   async cancelShowDate(showUuid: string, dateUuid: string): Promise<ShowDate> {
@@ -452,6 +533,9 @@ export class ShowsService {
     }
     if (showDate.status === ContentStatus.DRAFT) {
       throw new BadRequestException('Draft show dates cannot be cancelled. Delete it instead.');
+    }
+    if (this.isPastDate(showDate.date)) {
+      throw new BadRequestException('Cannot cancel a show date that has already passed.');
     }
 
     showDate.status = ContentStatus.CANCELED;

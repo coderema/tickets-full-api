@@ -331,12 +331,14 @@ export class BookingsService {
     const [bookingStats, ticketStats] = await Promise.all([
       this.bookingsRepository
         .createQueryBuilder('booking')
+        .where('booking.status != :cancelled', { cancelled: BookingStatus.CANCELLED })
         .select('COUNT(booking.id)', 'bookings')
         .addSelect('SUM(booking.totalAmount)', 'totalCash')
         .getRawOne(),
       this.bookingsRepository
         .createQueryBuilder('booking')
         .leftJoin('booking.tickets', 'ticket')
+        .where('booking.status != :cancelled', { cancelled: BookingStatus.CANCELLED })
         .select('COUNT(ticket.id)', 'ticketsSold')
         .getRawOne(),
     ]);

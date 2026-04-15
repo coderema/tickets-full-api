@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../../core/entities/booking.entity';
 import { ShowDate } from '../../core/entities/show-date.entity';
+import { ContentStatus } from '../../core/entities/enums';
 
 @Injectable()
 export class ReportsService {
@@ -97,13 +98,14 @@ export class ReportsService {
   }
 
   async capacity(): Promise<
-    { showName: string; dateLabel: string; totalCapacity: number | null; soldCount: number; fillPct: number | null }[]
+    { showName: string; dateLabel: string; totalCapacity: number | null; soldCount: number; fillPct: number | null; status: string }[]
   > {
     const rows = await this.showDatesRepository
       .createQueryBuilder('showDate')
       .innerJoin('showDate.show', 'show')
       .leftJoin('showDate.bookings', 'booking')
       .leftJoin('booking.tickets', 'ticket')
+      .where('showDate.status != :canceled', { canceled: ContentStatus.CANCELED })
       .select('show.name', 'showName')
       .addSelect(
         "CONCAT(showDate.date, CASE WHEN showDate.time IS NOT NULL THEN CONCAT(' ', showDate.time) ELSE '' END)",
@@ -111,11 +113,13 @@ export class ReportsService {
       )
       .addSelect('showDate.capacity', 'totalCapacity')
       .addSelect('COUNT(DISTINCT ticket.id)', 'soldCount')
+      .addSelect('showDate.status', 'status')
       .groupBy('showDate.uuid')
       .addGroupBy('show.name')
       .addGroupBy('showDate.date')
       .addGroupBy('showDate.time')
       .addGroupBy('showDate.capacity')
+      .addGroupBy('showDate.status')
       .orderBy('showDate.date', 'ASC')
       .addOrderBy('showDate.time', 'ASC')
       .getRawMany<{
@@ -123,6 +127,7 @@ export class ReportsService {
         dateLabel: string;
         totalCapacity: string | null;
         soldCount: string;
+        status: string;
       }>();
 
     return rows.map((r) => {
@@ -134,6 +139,7 @@ export class ReportsService {
         totalCapacity: cap,
         soldCount: sold,
         fillPct: cap !== null && cap > 0 ? Math.round((sold / cap) * 100) : null,
+        status: r.status,
       };
     });
   }

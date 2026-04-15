@@ -1,6 +1,7 @@
 export enum UserRole {
   ADMIN       = 'admin',
   SUPER_ADMIN = 'super_admin',
+  SCANNER     = 'scanner',
 }
 
 export enum ContentStatus {

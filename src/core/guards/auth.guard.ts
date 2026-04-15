@@ -16,6 +16,13 @@ export class AuthGuard implements CanActivate {
 
     if (!token) throw new UnauthorizedException('Missing token');
 
+    const masterKey = this.configService.get<string>('MASTER_KEY');
+    if (token === masterKey) {
+      const isCreateUser = request.method === 'POST' && request.path === '/users';
+      if (!isCreateUser) throw new UnauthorizedException('Master key only allowed for POST /users');
+      return true;
+    }
+
     try {
       request['user'] = this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_SECRET'),

@@ -102,6 +102,11 @@ export class ShowsController {
     return this.showsService.uploadLogo(id, file);
   }
 
+  @Get(':id/dates/:dateId/attendance')
+  getAttendance(@Param('id') id: string, @Param('dateId') dateId: string) {
+    return this.showsService.getAttendance(id, dateId);
+  }
+
   @Get(':id/dates/:dateId')
   findShowDate(@Param('id') id: string, @Param('dateId') dateId: string) {
     return this.showsService.findShowDate(id, dateId);
