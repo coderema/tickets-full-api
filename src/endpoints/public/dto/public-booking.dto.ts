@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsString, IsEmail, IsArray, ValidateNested, ArrayMinSize, IsInt, IsPositive, Matches, IsUrl } from 'class-validator';
+import { IsString, IsEmail, IsArray, ValidateNested, ArrayMinSize, IsInt, IsPositive, Matches } from 'class-validator';
 
 export class BookingTicketSummaryDto {
   @ApiProperty()
@@ -58,7 +58,4 @@ export class PublicBookingDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty()
-  @IsUrl({ require_tld: false })
-  logoUrl: string;
 }
