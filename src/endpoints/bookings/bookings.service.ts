@@ -280,7 +280,7 @@ export class BookingsService {
   async generateTicketHtml(bookingUuid: string, ticketUuid: string): Promise<{ ticket: string }> {
     const booking = await this.bookingsRepository.findOne({
       where: { uuid: bookingUuid },
-      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show', 'showDate.show.image'],
+      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show'],
     });
     if (!booking) throw new NotFoundException(`Booking #${bookingUuid} not found`);
 
@@ -291,7 +291,7 @@ export class BookingsService {
     const showDateStr = [booking.showDate.date, booking.showDate.time].filter(Boolean).join(' ');
     const purchaseDate = booking.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const showImageUrl = show.image?.url ?? null;
+    const showImageUrl = show.logoUrl ?? null;
     const qrDataUrl = await QRCode.toDataURL(ticketRecord.uuid, { width: 120, margin: 1 });
 
     const tickets = [{

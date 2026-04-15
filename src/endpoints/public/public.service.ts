@@ -108,7 +108,7 @@ export class PublicService {
   async getTicket(bookingUuid: string, ticketUuid: string): Promise<string> {
     const booking = await this.bookingsRepository.findOne({
       where: { uuid: bookingUuid },
-      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show', 'showDate.show.image'],
+      relations: ['tickets', 'tickets.ticketType', 'showDate', 'showDate.show'],
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
@@ -118,7 +118,7 @@ export class PublicService {
     const show = booking.showDate.show;
     const showDateStr = [booking.showDate.date, booking.showDate.time].filter(Boolean).join(' ');
     const purchaseDate = booking.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const showImageUrl = show.image?.url ?? null;
+    const showImageUrl = show.logoUrl ?? null;
     const qrDataUrl = await QRCode.toDataURL(ticketRecord.uuid, { width: 120, margin: 1 });
 
     return compiledTemplate({
@@ -143,7 +143,7 @@ export class PublicService {
     // 1. Validate show date
     const showDate = await this.showDatesRepository.findOne({
       where: { uuid: dto.showDateUuid, status: ContentStatus.PUBLISHED },
-      relations: ['show', 'show.image'],
+      relations: ['show'],
     });
     if (!showDate) throw new NotFoundException('Show date not found or not available.');
 
@@ -260,7 +260,7 @@ export class PublicService {
     const showDateStr = [showDate.date, showDate.time].filter(Boolean).join(' ');
     const purchaseDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const showImageUrl = showDate.show.image?.url ?? null;
+    const showImageUrl = showDate.show.logoUrl ?? null;
     const qrDataUrls = await Promise.all(
       savedTickets.map((t) => QRCode.toDataURL(t.uuid, { width: 120, margin: 1 })),
     );
