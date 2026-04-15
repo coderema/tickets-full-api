@@ -22,6 +22,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY src/endpoints/bookings/templates ./dist/endpoints/bookings/templates
 
 EXPOSE 3000
 
