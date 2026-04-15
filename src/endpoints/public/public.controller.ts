@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, Body, Res } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { PublicService } from './public.service';
 import { PublicBookingDto } from './dto/public-booking.dto';
